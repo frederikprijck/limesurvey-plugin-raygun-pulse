@@ -1,6 +1,18 @@
 <?php
 
-class RaygunPulse extends PluginBase {
+/**
+ * Raygun Pulse Plugin for LimeSurvey
+ * Implement RayGun Pulse to log your client side activities.
+ *
+ * @author Frederik Prijck <http://www.frederikprijck.net/>
+ * @copyright 2016 Frederik Prijck <http://www.frederikprijck.net/>
+ * @license MIT
+ * @license https://opensource.org/licenses/MIT MIT License (MIT)
+ * @version 1.0.0
+ *
+ */
+
+class RaygunPulse extends \ls\pluginmanager\PluginBase {
     
     static protected $name = 'RaygunPulse';
     static protected $description = 'Implement RayGun Pulse to log your client side activities.';
@@ -13,27 +25,59 @@ class RaygunPulse extends PluginBase {
         )
     );
 
-    public function __construct(PluginManager $manager, $id) {
-        parent::__construct($manager, $id);
-
+    public function init() {
         $this->subscribe('beforeSurveyPage');
     }
-
+    
+    /*
+     * Hook to handle the 'beforeSurveyPage' event
+     * See: https://manual.limesurvey.org/BeforeSurveyPage
+    */
     public function beforeSurveyPage()
     {
-        // Get the js directory
-	$jsPath=Yii::app()->assetManager->publish(dirname(__FILE__) . '/js/');
-	// Register the js file
-        Yii::app()->clientScript->registerScriptFile($jsPath.'/raygunPulse.register.js');
-        Yii::app()->clientScript->registerScriptFile($jsPath.'/raygunPulse.js');
-        // Get the settings
         $apiKey = $this->get('apiKey');
-        $sessionId = Yii::app()->session->getSessionID();
-        $aOption['apiKey'] = $apiKey;
-        $aOption['identifier'] = $sessionId;
-	// Create the javascript code to inject in the page
-        $raygunPulseScript="raygunPulse.init(".ls_json_encode($aOption).");";
-	// Inject js into the page
-        Yii::app()->clientScript->registerScript("raygunPulse", $raygunPulseScript, CClientScript::POS_END);
+        $isApiKeyProvided = trim($apiKey) !== '';
+        
+        if($isApiKeyProvided){
+            $this->loadPlugin($apiKey);
+        }       
     }
+    
+    /*
+     * Method used to load the plugin
+    */
+    private function loadPlugin($apiKey){
+      // Get the js directory
+	  $jsPath=Yii::app()->assetManager->publish(dirname(__FILE__) . '/js/');
+	  // Register the js file
+      Yii::app()->clientScript->registerScriptFile($jsPath.'/raygunPulse.register.js');
+      Yii::app()->clientScript->registerScriptFile($jsPath.'/raygunPulse.js');
+       
+      $aOption['apiKey'] = $apiKey;
+      $aOption['identifier'] = $this->getUserIdentifier();
+      // Create the javascript code to inject in the page
+      $raygunPulseScript = "raygunPulse.init(".ls_json_encode($aOption).");";
+      // Inject js into the page
+      Yii::app()->clientScript->registerScript("raygunPulse", $raygunPulseScript, CClientScript::POS_END);
+    }
+    
+    /*
+     * Method used to generate the identifier for a user
+    */
+    private function getUserIdentifier(){
+        $surveyId=Yii::app()->session['LEMsid'];
+        $token = Yii::app()->session['survey_' . $surveyId]['token'];
+        
+        // Check if the survey uses tokens
+        // Currenly only session Id is supported as identifier
+        $canUseToken = false;
+        // When tokens can not be used, we fallback on the session id
+        if($canUseToken == false){
+            $sessionId = Yii::app()->session->getSessionID();
+            return $sessionId;
+        }else{
+            
+        }
+    }
+    
 }
