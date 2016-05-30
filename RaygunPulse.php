@@ -66,17 +66,20 @@ class RaygunPulse extends \ls\pluginmanager\PluginBase {
     */
     private function getUserIdentifier(){
         $surveyId=Yii::app()->session['LEMsid'];
-        $token = Yii::app()->session['survey_' . $surveyId]['token'];
+        $surveySession = Yii::app()->session['survey_' . $surveyId];
+        $token =  $surveySession['token'];
         
         // Check if the survey uses tokens
         // Currenly only session Id is supported as identifier
-        $canUseToken = false;
-        // When tokens can not be used, we fallback on the session id
+        $canUseToken = trim($token) !== '';
+        
         if($canUseToken == false){
+            // When tokens are not used: use [sessionId] as identifier
             $sessionId = Yii::app()->session->getSessionID();
             return $sessionId;
         }else{
-            
+            // When tokens are used: use [surveyId]-[token] as identifier
+            return $surveyId . '-' . $token;
         }
     }
     
