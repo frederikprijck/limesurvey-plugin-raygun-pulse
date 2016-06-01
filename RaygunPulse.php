@@ -80,7 +80,7 @@ class RaygunPulse extends \ls\pluginmanager\PluginBase {
         if($canUseToken == false){
             // When tokens are not used: use [sessionId] as identifier
             $sessionId = Yii::app()->session->getSessionID();
-            return $sessionId;
+            return  $surveyId . '-' . $sessionId;
         }else{
             // When tokens are used: use [surveyId]-[token] as identifier
             return $surveyId . '-' . $token;
