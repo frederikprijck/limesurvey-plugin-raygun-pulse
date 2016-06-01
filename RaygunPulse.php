@@ -53,10 +53,10 @@ class RaygunPulse extends \ls\pluginmanager\PluginBase {
       Yii::app()->clientScript->registerScriptFile($jsPath.'/raygunPulse.register.js');
       Yii::app()->clientScript->registerScriptFile($jsPath.'/raygunPulse.js');
        
-      $aOption['apiKey'] = $apiKey;
-      $aOption['identifier'] = $this->getUserIdentifier();
+      $options['apiKey'] = $apiKey;
+      $options['identifier'] = $this->getUserIdentifier();
       // Create the javascript code to inject in the page
-      $raygunPulseScript = "raygunPulse.init(".ls_json_encode($aOption).");";
+      $raygunPulseScript = "raygunPulse.init(".ls_json_encode($options).");";
       // Inject js into the page
       Yii::app()->clientScript->registerScript("raygunPulse", $raygunPulseScript, CClientScript::POS_END);
     }
