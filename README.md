@@ -1,8 +1,8 @@
 # limesurvey-plugin-raygun-pulse
-A plugin to allow Raygun pulse integration in your limesurvey surveys. See: https://raygun.com/products/real-user-monitoring
+A plugin to allow Raygun Pulse integration in your limesurvey surveys. See: https://raygun.com/products/real-user-monitoring
 
 ## LimeSurvey support
-This plugin was built for LimeSurvey version 2.06 and does only support versions up to 2.50.
+This plugin was built for LimeSurvey version 2.06 and does only support versions up to 2.06.
 
 ## Installation
 - Go to your LimeSurvey plugin Directory
@@ -10,3 +10,4 @@ This plugin was built for LimeSurvey version 2.06 and does only support versions
 
 ## Plugin Configuration
 - Raygun Pulse Api Key
+- Exclude user information (default: true)

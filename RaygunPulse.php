@@ -22,6 +22,11 @@ class RaygunPulse extends \ls\pluginmanager\PluginBase {
         'apiKey'=>array(
             'type'=>'string',
             'label' => 'The api key to use for raygun pulse'
+        ),
+        'anonymous'=>array(
+            'type'=>'boolean',
+            'label' => 'Exclude user information when sending information to raygun pulse',
+            'default' => '1'
         )
     );
 
@@ -36,54 +41,93 @@ class RaygunPulse extends \ls\pluginmanager\PluginBase {
     public function beforeSurveyPage()
     {
         $apiKey = $this->get('apiKey');
+        $isAnonymous = $this->get('anonymous');
         $isApiKeyProvided = trim($apiKey) !== '';
         
         if($isApiKeyProvided){
-            $this->loadPlugin($apiKey);
+            $this->injectRaygunJsFiles($apiKey, $isAnonymous);
+            // Call RayGun for none-question specific views
+            $this->callRayGun($apiKey, $isAnonymous);
         }       
     }
     
     /*
-     * Method used to load the plugin
+     * Method used to inject the required files in the HTML
     */
-    private function loadPlugin($apiKey){
+    private function injectRaygunJsFiles($apiKey, $isAnonymous){
       // Get the js directory
 	  $jsPath=Yii::app()->assetManager->publish(dirname(__FILE__) . '/js/');
 	  // Register the js file
       Yii::app()->clientScript->registerScriptFile($jsPath.'/raygunPulse.register.js');
       Yii::app()->clientScript->registerScriptFile($jsPath.'/raygunPulse.js');
-       
-      $options['apiKey'] = $apiKey;
-      $options['identifier'] = $this->getUserIdentifier();
-      // Create the javascript code to inject in the page
-      $raygunPulseScript = "raygunPulse.init(".ls_json_encode($options).");";
-      // Inject js into the page
-      Yii::app()->clientScript->registerScript("raygunPulse", $raygunPulseScript, CClientScript::POS_END);
     }
     
     /*
-     * Method used to generate the identifier for a user
+     * Method used to call Raygun using the specified apiKey and indicating whether or not the 
+     *  data should be anonymous or not. 
+     * When isAnonymous is false, a user object will be created and sent to Raygun Pulse.
     */
-    private function getUserIdentifier(){
+    private function callRayGun($apiKey, $isAnonymous){
+        $options['apiKey'] = $apiKey;
+        $options['user'] = $this->getUserInformation($isAnonymous);
+        // Create the javascript code to inject in the page
+        $raygunPulseScript = "raygunPulse.init(".ls_json_encode($options).");";
+        // Inject js into the page
+        Yii::app()->clientScript->registerScript("raygunPulse", $raygunPulseScript, CClientScript::POS_END);
+    }
+    
+    /*
+     * Method used to generate the user information for RayGun Pulse
+    */
+    private function getUserInformation($isAnonymous){
         $surveyId=Yii::app()->session['LEMsid'];
-        $surveySession = Yii::app()->session["survey_{$surveyId}"];
+        $surveySession = $this->getSurveySession($surveyId);
         
         // Find the token by session
-        $sessionToken=(isset($surveySession['token'])) ? $surveySession['token'] : null;
+        $sessionToken = (isset($surveySession['token'])) ? $surveySession['token'] : null;
         // Find the token by request param, if not found use $sessionToken as default
         $token = $this->api->getRequest()->getParam('token', $sessionToken);
         
         // Check if the survey uses tokens
-        // Currenly only session Id is supported as identifier
         $canUseToken = trim($token) !== '';
         
+        $options['isAnonymous'] = $isAnonymous;
+        
         if($canUseToken == false){
-            // When tokens are not used: use [sessionId] as identifier
+            // When tokens are not used: use [surveyId]-[sessionId] as identifier
             $sessionId = Yii::app()->session->getSessionID();
-            return  $surveyId . '-' . $sessionId;
+            $options['identifier'] = $surveyId . '-' . $sessionId;
         }else{
             // When tokens are used: use [surveyId]-[token] as identifier
-            return $surveyId . '-' . $token;
+            $options['identifier'] =  $surveyId . '-' . $token;
+            if($isAnonymous == false){
+                // As the getUser method can return 'NULL', ensure that it's cast to an empty array.
+                $options = array_merge($options, (array) $this->getUser($surveyId, $token));
+            }
         }
+        
+        return $options;
+    }
+    
+    /*
+     * Method used to get the user information from the token table based on the surveyId and token
+    */
+    private function getUser($surveyId, $token){
+        if($existingToken = TokenDynamic::model($surveyId)->find("token =:token",array(':token' => $token))){
+            $user['firstName'] = $existingToken->firstname;
+            $user['lastName'] = $existingToken->lastname;
+            $user['email'] = $existingToken->email;
+            
+            return $user;
+        }
+    }
+    
+    /*
+     * Method used to the the session object for the specified surveyId
+     * surveyId is optional, LEMsid will be loaded from the session when the surveyId is not provided
+    */
+    private function getSurveySession($surveyId){
+        $surveyId = (isset($surveyId)) ? $surveyId : Yii::app()->session['LEMsid'];
+        return Yii::app()->session["survey_{$surveyId}"];
     }
 }
