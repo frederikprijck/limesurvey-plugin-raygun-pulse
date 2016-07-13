@@ -70,6 +70,8 @@ class RaygunPulse extends \ls\pluginmanager\PluginBase {
     private function callRayGun($apiKey, $isAnonymous){
         $options['apiKey'] = $apiKey;
         $options['user'] = $this->getUserInformation($isAnonymous);
+        $options['group'] = $this->getGroupInformation();
+        $options['surveyId'] =  $this->getSurveyId();
         // Create the javascript code to inject in the page
         $raygunPulseScript = "raygunPulse.init(".ls_json_encode($options).");";
         // Inject js into the page
@@ -80,7 +82,7 @@ class RaygunPulse extends \ls\pluginmanager\PluginBase {
      * Method used to generate the user information for RayGun Pulse
     */
     private function getUserInformation($isAnonymous){
-        $surveyId=Yii::app()->session['LEMsid'];
+        $surveyId = $this->getSurveyId();
         $surveySession = $this->getSurveySession($surveyId);
         
         // Find the token by session
@@ -110,6 +112,32 @@ class RaygunPulse extends \ls\pluginmanager\PluginBase {
     }
     
     /*
+     * Method used to get the information of the current group
+     * Returns null if currentStep is not set.
+    */
+    private function getGroupInformation(){
+        $surveyId = $this->getSurveyId();
+        $surveySession = $this->getSurveySession();
+        $currentStep = (isset($surveySession['step'])) ? $surveySession['step'] : null;
+        $previousStep = (isset($surveySession['prevstep'])) ? $surveySession['prevstep'] : null;
+        $groups = (isset($surveySession['grouplist'])) ? $surveySession['grouplist'] : null;
+
+        // When $currentStep > -1 we are inside the survey
+        // $currentStep == -1 means we are on the welcome page
+        if($currentStep > -1){
+            $currentGroup = $groups[$currentStep];
+            
+            return Array(
+                'id' => $currentGroup['gid'],
+                'name' => $currentGroup['group_name'],
+                'step' => $currentStep
+            );
+        }
+        
+        return null;
+    }
+    
+    /*
      * Method used to get the user information from the token table based on the surveyId and token
     */
     private function getUser($surveyId, $token){
@@ -122,12 +150,17 @@ class RaygunPulse extends \ls\pluginmanager\PluginBase {
         }
     }
     
+    
+    private function getSurveyId(){
+        return Yii::app()->session['LEMsid'];
+    }
+    
     /*
      * Method used to the the session object for the specified surveyId
      * surveyId is optional, LEMsid will be loaded from the session when the surveyId is not provided
     */
     private function getSurveySession($surveyId){
-        $surveyId = (isset($surveyId)) ? $surveyId : Yii::app()->session['LEMsid'];
+        $surveyId = (isset($surveyId)) ? $surveyId : $this->getSurveyId();
         return Yii::app()->session["survey_{$surveyId}"];
     }
 }

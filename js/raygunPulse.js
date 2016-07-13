@@ -18,6 +18,15 @@
             global.rg4js('apiKey', options.apiKey);
             global.rg4js('enablePulse', true);
             global.rg4js('setUser', generateUser(options));
+            
+            // Generate a custom page view
+            setTimeout(function () {
+                // Only send to Raygun when a group was set.
+                if(global.Raygun && options.group) {
+                    var url = options.surveyId + '/' + options.group.id + '/' + options.group.name;
+                    global.Raygun.trackEvent('pageView', { path: url });
+                }
+             }, 1000);
         }
     };
 })(window);
